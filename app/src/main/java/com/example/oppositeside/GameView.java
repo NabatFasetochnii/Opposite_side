@@ -11,7 +11,7 @@ import android.view.SurfaceView;
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private DrawThread drawThread;
-    private static final int RECT_SIZE = 1;
+    private static final int RECT_SIZE = 2;
     public Rectangles rectangles;
 
 //    public Paint paint = new Paint();
