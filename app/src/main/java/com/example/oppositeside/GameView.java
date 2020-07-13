@@ -13,14 +13,15 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     private DrawThread drawThread;
     private static final int RECT_SIZE = 2;
     public Rectangles rectangles;
-
-//    public Paint paint = new Paint();
+    private boolean isStart;
 
     public GameView(Context context) {
         super(context);
         getHolder().addCallback(this);
-
+        isStart = true;
     }
+
+
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
@@ -31,7 +32,11 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         drawThread = new DrawThread(getHolder());
         drawThread.setRunning(true);
         drawThread.start();
-        rectangles = new Rectangles(this, RECT_SIZE);
+
+        if(isStart){
+            rectangles = new Rectangles(this, RECT_SIZE);
+            isStart = false;
+        }
 
     }
 
@@ -58,7 +63,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         public DrawThread(SurfaceHolder surfaceHolder) {
             this.surfaceHolder = surfaceHolder;
 
-            // загружаем картинку, которую будем отрисовывать
         }
 
         public void setRunning(boolean run) {
@@ -69,8 +73,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         public void run() {
             Canvas canvas;
             while (runFlag) {
-                // получаем текущее время и вычисляем разницу с предыдущим
-                // сохраненным моментом времени
                 canvas = null;
                 try {
                     // получаем объект Canvas и выполняем отрисовку
@@ -103,9 +105,5 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         return true;
     }
 
-   /* private static class Params{
-
-
-    }*/
 
 }
