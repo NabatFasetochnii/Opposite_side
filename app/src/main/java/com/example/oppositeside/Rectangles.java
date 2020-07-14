@@ -1,8 +1,8 @@
 package com.example.oppositeside;
 
 import android.graphics.Canvas;
-
 import java.io.*;
+import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class Rectangles {
@@ -32,23 +32,43 @@ public class Rectangles {
 */
     }
 
-    boolean setLevel(String path, int s){ // генерим отрезок экранов в нужном файле
+    boolean setLevel(String path, int size, int lvl,
+                     ArrayList<ArrayList<double[]>> list) { // генерим отрезок экранов в нужном файле
+        File file = new File(path);
 
-        try(FileReader fileReader = new FileReader(path)){ //TODO дописать функцию
+        try (DataInputStream dataInputStream = new DataInputStream(new FileInputStream(file))) {
 
-            int stringCount = countLines(path) - 1;
-
+            //файл имеет следующую структуру: одна запись - три инта, на одном "экране" lvl записей. Всего может быть очень много экранов.
             ThreadLocalRandom random = ThreadLocalRandom.current();
-            int startPoint = random.nextInt(0, stringCount - s);
-//            fileReader.read();
+            //считаем рандомную точку начала отрезка.
+            long startPoint = random.nextLong(0L, (file.length() - size * (4L * 3 * lvl)));
+            dataInputStream.skip(startPoint); //???
 
+            for (int i = 0; i < size; i++){
+
+                ArrayList<double[]> doubles = new ArrayList<>();
+
+                for (int t = 0; t < lvl; t++) {
+
+                    double[] b = new double[3];
+                    for (int j = 0; j < 3; j++) {
+                        b[j] = dataInputStream.readInt();
+                    }
+                    doubles.add(b);
+                }
+                list.add(doubles);
+            }
+            dataInputStream.close();
             return true;
-        }catch (IOException exception){return false;}
-
-
+        } catch (FileNotFoundException e) {
+            return false;
+        } catch (IOException exception) {
+            exception.printStackTrace();
+            return false;
+        }
     }
 
-    public static int countLines(String filename) throws IOException { // штука для подсчёта количества строк в файле. Нашёл в интернете
+    /*public static int countLines(String filename) throws IOException { // штука для подсчёта количества строк в файле. Нашёл в интернете
         try (InputStream is = new BufferedInputStream(new FileInputStream(filename))) {//https://coderoad.ru/453018/%D0%9A%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE-%D1%81%D1%82%D1%80%D0%BE%D0%BA-%D0%B2-%D1%84%D0%B0%D0%B9%D0%BB%D0%B5-%D0%B2-Java
             byte[] c = new byte[1024];
 
@@ -83,5 +103,5 @@ public class Rectangles {
             return count == 0 ? 1 : count;
         }
     }
-
+*/
 }
