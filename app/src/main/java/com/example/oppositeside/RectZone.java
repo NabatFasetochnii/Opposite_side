@@ -1,7 +1,6 @@
 package com.example.oppositeside;
 
 import android.graphics.Canvas;
-import android.graphics.Color;
 import android.graphics.Paint;
 
 public class RectZone {
@@ -26,7 +25,7 @@ public class RectZone {
 
         paint.setColor(color);
         paint.setStyle(Paint.Style.FILL_AND_STROKE);
-        paint2.setColor(Color.BLACK);
+        paint2.setColor(color);
         paint2.setStyle(Paint.Style.STROKE);
         paint2.setStrokeWidth(7);
 
@@ -40,6 +39,10 @@ public class RectZone {
     }
 
     boolean isTouch(int X, int Y) {
+
+        return (x <= X) && (X <= right) && (y <= Y) && (Y <= bottom);
+    }
+    boolean isTouch(float X, float Y) {
 
         return (x <= X) && (X <= right) && (y <= Y) && (Y <= bottom);
     }

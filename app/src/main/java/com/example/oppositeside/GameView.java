@@ -1,6 +1,7 @@
 package com.example.oppositeside;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
@@ -11,14 +12,20 @@ import android.view.SurfaceView;
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private DrawThread drawThread;
-    private static final int RECT_SIZE = 2;
     public Rectangles rectangles;
     private boolean isStart;
+    boolean isLevelRun;
+    private boolean isLevelFirstRun;
+    float x, y;
+    Activity activity;
 
-    public GameView(Context context) {
+    public GameView(Context context, Activity activity) {
         super(context);
         getHolder().addCallback(this);
         isStart = true;
+        isLevelRun = false;
+        isLevelFirstRun = true;
+        this.activity = activity;
     }
 
 
@@ -34,8 +41,9 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         drawThread.start();
 
         if(isStart){
-            rectangles = new Rectangles(this, RECT_SIZE);
+            rectangles = new Rectangles(this, activity);
             isStart = false;
+            rectangles.isStart(true);
         }
 
     }
@@ -98,7 +106,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    public boolean onTouchEvent(MotionEvent event){
+    public boolean onTouchEvent(MotionEvent event) {
+
+        x = event.getX();
+        y = event.getY();
+        if(isLevelFirstRun){
+
+            if(rectangles.startZone.isTouch(x, y)){
+                rectangles.setStart(false);
+                isLevelFirstRun = false;
+            }
+        }else {
+
+            rectangles.onTouch(event);
+        }
 
 
 
