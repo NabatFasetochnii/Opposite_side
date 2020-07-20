@@ -9,29 +9,38 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+@SuppressLint("ViewConstructor")
 public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     private DrawThread drawThread;
-    public Rectangles rectangles;
-    private boolean isStart;
-    boolean isLevelRun;
-    private boolean isLevelFirstRun;
     float x, y;
-    Activity activity;
+    boolean isLevelRun;
+    private Activity activity;
+    private Rectangles rectangles;
+    private Context context;
+    private double scaleFactorX;
+    private double scaleFactorY;
+    private boolean isStart;
+    private boolean isLevelFirstRun;
+
 
     public GameView(Context context, Activity activity) {
         super(context);
         getHolder().addCallback(this);
+
+        this.context = context;
+        this.activity = activity;
+
         isStart = true;
         isLevelRun = false;
         isLevelFirstRun = true;
-        this.activity = activity;
     }
 
 
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+
     }
 
     @Override
@@ -40,10 +49,18 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         drawThread.setRunning(true);
         drawThread.start();
 
-        if(isStart){
+        scaleFactorX = getWidth() / 1080.0;
+        scaleFactorY = getHeight() / 1920.0;
+
+        try {
             rectangles = new Rectangles(this, activity);
+        } catch (InterruptedException ignored) {
+        }
+
+        if (isStart) {
+
+            rectangles.setStart(true);
             isStart = false;
-            rectangles.isStart(true);
         }
 
     }
@@ -57,6 +74,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         while (retry) {
             try {
                 drawThread.join();
+
                 retry = false;
             } catch (InterruptedException e) {
                 // если не получилось, то будем пытаться еще и еще
@@ -114,7 +132,7 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
             if(rectangles.startZone.isTouch(x, y)){
                 rectangles.setStart(false);
-                isLevelFirstRun = false;
+                setLevelFirstRun(false);
             }
         }else {
 
@@ -126,5 +144,69 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
         return true;
     }
 
+
+
+
+    public Activity getActivity() {
+        return activity;
+    }
+
+    public void setActivity(Activity activity) {
+        this.activity = activity;
+    }
+
+    public void setContext(Context context) {
+        this.context = context;
+    }
+
+    public Rectangles getRectangles() {
+        return rectangles;
+    }
+
+    public void setRectangles(Rectangles rectangles) {
+        this.rectangles = rectangles;
+    }
+
+    public double getScaleFactorX() {
+        return scaleFactorX;
+    }
+
+    public void setScaleFactorX(double scaleFactorX) {
+        this.scaleFactorX = scaleFactorX;
+
+
+    }
+
+    public double getScaleFactorY() {
+        return scaleFactorY;
+    }
+
+    public void setScaleFactorY(double scaleFactorY) {
+        this.scaleFactorY = scaleFactorY;
+    }
+
+    public boolean isStart() {
+        return isStart;
+    }
+
+    public void setStart(boolean start) {
+        isStart = start;
+    }
+
+    public boolean isLevelRun() {
+        return isLevelRun;
+    }
+
+    public void setLevelRun(boolean levelRun) {
+        isLevelRun = levelRun;
+    }
+
+    public boolean isLevelFirstRun() {
+        return isLevelFirstRun;
+    }
+
+    public void setLevelFirstRun(boolean levelFirstRun) {
+        isLevelFirstRun = levelFirstRun;
+    }
 
 }

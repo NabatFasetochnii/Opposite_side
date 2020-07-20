@@ -6,74 +6,84 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.util.Log;
 import android.view.MotionEvent;
-import java.io.*;
+import java.io.DataInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.concurrent.ThreadLocalRandom;
 
 public class Rectangles {
 
     GameView gameView;
-    double scaleFactorX;
-    double scaleFactorY;
     RectZone startZone;
     boolean start;
     ArrayList<ArrayList<RectZone>> arrayLists;
-    String path = "1";
-    int sizeLvl = 5;
+    String path = "levels/1/1"; //levels/1/2
+    int sizeLvl = 50;
     int i = 0;
     Activity activity;
     ThreadLocalRandom random;
     long startPoint;
-//    int[] b = new int[3];
 
-
-    public Rectangles(GameView gameView, Activity activity) {
+    public Rectangles(GameView gameView, Activity activity) throws InterruptedException {
         this.gameView = gameView;
         this.activity = activity;
         random = ThreadLocalRandom.current();
 
-        scaleFactorX = gameView.getWidth() / 1080.0;
-        scaleFactorY = gameView.getHeight() / 1920.0;
 
-        startZone = new RectZone(0, 0, gameView.getRight(), gameView.getBottom() / 2, Color.RED);
-        try {
-            arrayLists = setLevel(path, sizeLvl, 1);
-        } catch (IOException exception) {
-            exception.printStackTrace();
-        }
 
+        startZone = new RectZone(0, 0, gameView.getRight(),
+                gameView.getBottom() / 2, Color.RED);
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                try {
+                    arrayLists = setLevel(path, sizeLvl, 1);
+                } catch (IOException exception) {
+                    exception.printStackTrace();
+                }
+            }
+        };
+        Thread thread = new Thread(runnable);
+        thread.start();
+
+        //thread.join();
 
     }
 
     public void onDraw(Canvas c) {
+        if (c != null) {
+            if (this.start) {
 
-        if (this.start) {
-
-            startZone.rectDraw(c);
-        } else {
-            if (i < arrayLists.size()) {
-                for (int j = 0; j < arrayLists.get(i).size(); j++) {
-                    arrayLists.get(i).get(j).rectDraw(c);
+                startZone.rectDraw(c);
+            } else {
+                if (i < arrayLists.size()) {
+                    for (int j = 0; j < arrayLists.get(i).size(); j++) {
+                        arrayLists.get(i).get(j).rectDraw(c);
+                    }
                 }
             }
         }
+
     }
 
     public void onTouch(MotionEvent event) {
 
-try {
-    if (event.getPointerCount() == arrayLists.get(i).size()) {
-        boolean b = true;
-        for (int o = 0; o < event.getPointerCount(); o++) {
-            b = b && arrayLists.get(i).get(o).isTouch(event.getX(o), event.getY(o));
+        try {
+            if (event.getPointerCount() == arrayLists.get(i).size()) {
+                boolean b = true;
+                for (int o = 0; o < event.getPointerCount(); o++) {
+                    b = b && arrayLists.get(i).get(o).isTouch(event.getX(o), event.getY(o));
 
-        }
-        if (b) {
-            i++; //TODO написать функцию смены уровня
-        }
+                }
+                if (b) {
+                    i++; //TODO написать функцию смены уровня
+                }
 
-    }
-} catch (Exception ignored){}
+            }
+        } catch (Exception ignored) {
+        }
 
     }
 
@@ -81,13 +91,10 @@ try {
         this.start = start;
     }
 
-    ArrayList<ArrayList<RectZone>>  setLevel(String path, int size, int lvl) throws IOException {
+    ArrayList<ArrayList<RectZone>> setLevel(String path, int size, int lvl) throws IOException {
         // генерим отрезок экранов в нужном файле
-        //File file = new File(path);
         ArrayList<ArrayList<RectZone>> list = new ArrayList<>();
 
-//        AssetManager assetManager = activity.getAssets();
-//        InputStream inputStream = assetManager.open("1");
         AssetFileDescriptor assetFileDescriptor = activity.getAssets().openFd(path);
         InputStream inputStream = assetFileDescriptor.createInputStream();
 
@@ -97,8 +104,7 @@ try {
 
             //считаем рандомную точку начала отрезка.
             startPoint = random.nextLong(0L, (assetFileDescriptor.getLength() - size * 4L * 3 * lvl));
-            dataInputStream.skipBytes((int)startPoint);
-
+            dataInputStream.skipBytes((int) startPoint);
 
             for (int p = 0; p < size; p++) {
 
@@ -111,10 +117,11 @@ try {
                     for (int j = 0; j < 3; j++) {
                         b[j] = (dataInputStream.readInt());
                     }
-                    /*doubles.add(new RectZone((int) (b[0] ), (int) (b[1] ),
-                            (int) ((b[0] + b[2]) ), (int) ((b[1] + b[2]) ), Color.RED));*/
-                    doubles.add(new RectZone((int) (b[0] ), (int) (b[1] ), //TODO происходит что-то очень плохое, неправильно считаются числа 
-                            (int) ((b[0] + b[2]) ), (int) ((b[1] + b[2]) ), Color.RED));
+                    doubles.add(new RectZone(
+                            (int) (b[0] * gameView.getScaleFactorX()),
+                            (int) (b[1] * gameView.getScaleFactorY()),
+                            (int) ((b[0] + b[2]) * gameView.getScaleFactorX()),
+                            (int) ((b[1] + b[2]) * gameView.getScaleFactorY()), Color.RED));
                 }
                 list.add(doubles);
             }
@@ -129,10 +136,6 @@ try {
 
     }
 
-    public void isStart(boolean s) {
-
-        start = s;
-    }
 
     /*public static int countLines(String filename) throws IOException { // штука для подсчёта количества строк в файле. Нашёл в интернете
         try (InputStream is = new BufferedInputStream(new FileInputStream(filename))) {//https://coderoad.ru/453018/%D0%9A%D0%BE%D0%BB%D0%B8%D1%87%D0%B5%D1%81%D1%82%D0%B2%D0%BE-%D1%81%D1%82%D1%80%D0%BE%D0%BA-%D0%B2-%D1%84%D0%B0%D0%B9%D0%BB%D0%B5-%D0%B2-Java
