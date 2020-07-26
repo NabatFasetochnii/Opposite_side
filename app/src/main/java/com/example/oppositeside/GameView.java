@@ -5,122 +5,208 @@ import android.app.Activity;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
-@SuppressLint("ViewConstructor")
-public class GameView extends SurfaceView implements SurfaceHolder.Callback {
+import static java.lang.Thread.sleep;
 
-    private DrawThread drawThread;
+@SuppressLint("ViewConstructor")
+public class GameView extends SurfaceView implements SurfaceHolder.Callback, Runnable {
+
+
+    /**
+     * Time per frame for 60 FPS
+     */
+    private static final int MAX_FRAME_TIME = (int) (1000.0 / 60.0);
+    private static final String LOG_TAG = "surface";
     float x, y;
-    boolean isLevelRun;
+    boolean init = true;
+    /**
+     * All the constructors are overridden to ensure functionality if one of the different constructors are used through an XML file or programmatically
+     */
+    private SurfaceHolder holder;
+    private Thread drawThread;
+    /**
+     * True when the surface is ready to draw
+     */
+    private boolean surfaceReady = false;
+    /**
+     * Drawing thread flag
+     */
+    private boolean drawingActive = false;
+    //boolean isLevelRun;
     private Activity activity;
     private Rectangles rectangles;
     private Context context;
     private double scaleFactorX;
     private double scaleFactorY;
-    private boolean isStart;
     private boolean isLevelFirstRun;
-
 
     public GameView(Context context, Activity activity) {
         super(context);
-        getHolder().addCallback(this);
 
         this.context = context;
         this.activity = activity;
 
-        isStart = true;
-        isLevelRun = false;
+        holder = getHolder();
+        holder.addCallback(this);
         isLevelFirstRun = true;
+
+
     }
 
+    public void tick() {
+        //Game logic here
 
+        if (init) {
+            rectangles = new Rectangles(this, activity);
+            rectangles.setStart(true);
+            init = false;
+        }
+
+
+    }
+
+    public void render(Canvas c) {
+        //Game rendering here
+
+        if (c != null) {
+            c.drawColor(Color.YELLOW);
+            rectangles.onDraw(c);
+        }
+    }
 
     @Override
     public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
 
+
+        // resize your UI
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        drawThread = new DrawThread(getHolder());
-        drawThread.setRunning(true);
-        drawThread.start();
+
+
+        this.holder = holder;
+
+        if (drawThread != null) {
+            Log.d(LOG_TAG, "draw thread still active..");
+            drawingActive = false;
+            try {
+                drawThread.join();
+            } catch (InterruptedException ignored) {
+            }
+        }
+
+        surfaceReady = true;
+        startDrawThread();
+        Log.d(LOG_TAG, "Created");
 
         scaleFactorX = getWidth() / 1080.0;
         scaleFactorY = getHeight() / 1920.0;
 
-        try {
-            rectangles = new Rectangles(this, activity);
-        } catch (InterruptedException ignored) {
-        }
+        rectangles = new Rectangles(this, activity);
 
-        if (isStart) {
-
-            rectangles.setStart(true);
-            isStart = false;
-        }
 
     }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
-        boolean retry = true;
-        // завершаем работу потока
-        drawThread.setRunning(false);
+        // Surface is not used anymore - stop the drawing thread
+        stopDrawThread();
+        // and release the surface
+        holder.getSurface().release();
 
-        while (retry) {
+        this.holder = null;
+        surfaceReady = false;
+        Log.d(LOG_TAG, "Destroyed");
+    }
+
+    /**
+     * Stops the drawing thread
+     */
+    public void stopDrawThread() {
+        if (drawThread == null) {
+            Log.d(LOG_TAG, "DrawThread is null");
+            return;
+        }
+        drawingActive = false;
+        while (true) {
             try {
-                drawThread.join();
-
-                retry = false;
-            } catch (InterruptedException e) {
-                // если не получилось, то будем пытаться еще и еще
+                Log.d(LOG_TAG, "Request last frame");
+                drawThread.join(5000);
+                break;
+            } catch (Exception e) {
+                Log.e(LOG_TAG, "Could not join with draw thread");
             }
+        }
+        drawThread = null;
+    }
+
+    /**
+     * Creates a new draw thread and starts it.
+     */
+    public void startDrawThread() {
+        if (surfaceReady && drawThread == null) {
+            drawThread = new Thread(this, "Draw thread");
+            drawingActive = true;
+            drawThread.start();
         }
     }
 
-    class DrawThread extends Thread {
-        private boolean runFlag = false;
-        private final SurfaceHolder surfaceHolder;
 
-        public DrawThread(SurfaceHolder surfaceHolder) {
-            this.surfaceHolder = surfaceHolder;
+    @Override
+    public void run() {
+        Log.d(LOG_TAG, "Draw thread started");
+        long frameStartTime;
+        long frameTime;
 
+        /*
+         * In order to work reliable on Nexus 7, we place ~500ms delay at the start of drawing thread
+         * (AOSP - Issue 58385)
+         */
+        if (android.os.Build.BRAND.equalsIgnoreCase("google") && android.os.Build.MANUFACTURER.equalsIgnoreCase("asus") && android.os.Build.MODEL.equalsIgnoreCase("Nexus 7")) {
+            Log.w(LOG_TAG, "Sleep 500ms (Device: Asus Nexus 7)");
+            try {
+                sleep(500);
+            } catch (InterruptedException ignored) {
+            }
         }
 
-        public void setRunning(boolean run) {
-            runFlag = run;
-        }
+        while (drawingActive) {
+            if (holder == null) {
+                return;
+            }
 
-        @Override
-        public void run() {
-            Canvas canvas;
-            while (runFlag) {
-                canvas = null;
+            frameStartTime = System.nanoTime();
+            Canvas canvas = holder.lockCanvas();
+            if (canvas != null) {
                 try {
-                    // получаем объект Canvas и выполняем отрисовку
-                    canvas = surfaceHolder.lockCanvas(null);
-                    synchronized (surfaceHolder) {
-                        if (canvas != null) draw(canvas);
+                    synchronized (holder) {
+                        tick();
+                        render(canvas);
                     }
                 } finally {
-                    if (canvas != null) {
-                        // отрисовка выполнена. выводим результат на экран
-                        surfaceHolder.unlockCanvasAndPost(canvas);
-                    }
+
+                    holder.unlockCanvasAndPost(canvas);
                 }
             }
-        }
 
-        private void draw(Canvas c) {
-            if (c != null) {
-                c.drawColor(Color.YELLOW);
-                rectangles.onDraw(c);
+            // calculate the time required to draw the frame in ms
+            frameTime = (System.nanoTime() - frameStartTime) / 1000000;
+
+            if (frameTime < MAX_FRAME_TIME) {
+                try {
+                    sleep(MAX_FRAME_TIME - frameTime);
+                } catch (InterruptedException e) {
+                    // ignore
+                }
             }
+
         }
+        Log.d(LOG_TAG, "Draw thread finished");
     }
 
     @SuppressLint("ClickableViewAccessibility")
@@ -128,23 +214,20 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
         x = event.getX();
         y = event.getY();
-        if(isLevelFirstRun){
+        if (isLevelFirstRun) {
 
-            if(rectangles.startZone.isTouch(x, y)){
+            if (rectangles.startZone.isTouch(x, y)) {
                 rectangles.setStart(false);
                 setLevelFirstRun(false);
             }
-        }else {
+        } else {
 
             rectangles.onTouch(event);
         }
 
 
-
         return true;
     }
-
-
 
 
     public Activity getActivity() {
@@ -183,22 +266,6 @@ public class GameView extends SurfaceView implements SurfaceHolder.Callback {
 
     public void setScaleFactorY(double scaleFactorY) {
         this.scaleFactorY = scaleFactorY;
-    }
-
-    public boolean isStart() {
-        return isStart;
-    }
-
-    public void setStart(boolean start) {
-        isStart = start;
-    }
-
-    public boolean isLevelRun() {
-        return isLevelRun;
-    }
-
-    public void setLevelRun(boolean levelRun) {
-        isLevelRun = levelRun;
     }
 
     public boolean isLevelFirstRun() {

@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.util.Log;
 import android.view.MotionEvent;
 import java.io.DataInputStream;
@@ -23,15 +24,15 @@ public class Rectangles {
     int sizeLvl = 50;
     int i = 0;
     Activity activity;
-    ThreadLocalRandom random;
     long startPoint;
+    Thread thread;
+    Paint paint = new Paint();
 
-    public Rectangles(GameView gameView, Activity activity) throws InterruptedException {
+    public Rectangles(GameView gameView, Activity activity) {
         this.gameView = gameView;
         this.activity = activity;
-        random = ThreadLocalRandom.current();
-
-
+        paint.setColor(Color.BLACK);
+        paint.setTextSize(50);
 
         startZone = new RectZone(0, 0, gameView.getRight(),
                 gameView.getBottom() / 2, Color.RED);
@@ -45,7 +46,7 @@ public class Rectangles {
                 }
             }
         };
-        Thread thread = new Thread(runnable);
+        thread = new Thread(runnable);
         thread.start();
 
         //thread.join();
@@ -58,9 +59,19 @@ public class Rectangles {
 
                 startZone.rectDraw(c);
             } else {
-                if (i < arrayLists.size()) {
-                    for (int j = 0; j < arrayLists.get(i).size(); j++) {
-                        arrayLists.get(i).get(j).rectDraw(c);
+                if (arrayLists != null) {
+                    if (i < arrayLists.size()) {
+                        for (int j = 0; j < arrayLists.get(i).size(); j++) {
+                            try {
+                                thread.join();
+                            } catch (InterruptedException ignored) {
+                            }
+
+                            arrayLists.get(i).get(j).rectDraw(c);
+                            c.drawText(arrayLists.get(i).get(j).getX()  + "_" +
+                                    arrayLists.get(i).get(j).getY(),
+                                    50,50, paint);
+                        }
                     }
                 }
             }
@@ -103,7 +114,8 @@ public class Rectangles {
             //файл имеет следующую структуру: одна запись - три инта, на одном "экране" lvl записей. Всего может быть очень много экранов.
 
             //считаем рандомную точку начала отрезка.
-            startPoint = random.nextLong(0L, (assetFileDescriptor.getLength() - size * 4L * 3 * lvl));
+            startPoint = ThreadLocalRandom.current().nextLong(0L,
+                    (assetFileDescriptor.getLength() - 1 - size * 4L * 3 * lvl));
             dataInputStream.skipBytes((int) startPoint);
 
             for (int p = 0; p < size; p++) {
